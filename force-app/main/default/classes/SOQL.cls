@@ -185,9 +185,14 @@ public with sharing class SOQL {
 	 */
 	public static Decimal getTotalRevenueByStage(String stage) {
 		// Use AggregateQuery to get the total revenue
-
+		AggregateResult oppAmtResults = [
+			SELECT SUM(Amount) totalRevenue
+			FROM Opportunity
+			WHERE StageName = :stage OR Amount > 10000
+		];
+		Decimal totalRevenue = (Decimal) oppAmtResults.get('totalRevenue');
 		// Return the total revenue
-		return null; // Replace null with the variable you used to store the result
+		return totalRevenue != null ? totalRevenue : 0; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -196,7 +201,12 @@ public with sharing class SOQL {
 	 * @return A list of the first 10 Accounts ordered by Name.
 	 */
 	public static List<Account> getFirstTenAccounts() {
-		return null; // Replace null with the variable you used to store the result
+		return [
+		SELECT Id, Name 
+		FROM Account 
+		ORDER BY Name ASC
+		LIMIT 10
+		]; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -205,7 +215,13 @@ public with sharing class SOQL {
 	 * @return A list of Opportunities with an Amount greater than 100,000, ordered by CloseDate, and limited to 5 records.
 	 */
 	public static List<Opportunity> getHighValueOpportunities() {
-		return null; // Replace null with the variable you used to store the result
+		return [
+		SELECT Id, CloseDate, Amount
+		FROM Opportunity
+		WHERE Amount > 100000
+		ORDER BY CloseDate
+		LIMIT 5
+		]; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -214,7 +230,12 @@ public with sharing class SOQL {
 	 * @return A list of Contacts
 	 */
 	public static List<Contact> getBirthdateContacts() {
-		return null; // Replace null with the variable you used to store the result
+		return [
+		SELECT Id, Birthdate
+		FROM Contact
+		ORDER BY Birthdate DESC
+		LIMIT 3
+		]; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -223,7 +244,13 @@ public with sharing class SOQL {
 	 * @return A list of Cases
 	 */
 	public static List<Case> getCasesWithStatus() {
-		return null; // Replace null with the variable you used to store the result
+		return [
+		SELECT Id, Status, CreatedDate
+		FROM Case
+		WHERE Status = 'Open'
+		ORDER BY CreatedDate
+		LIMIT 10 OFFSET 5
+		]; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -235,14 +262,19 @@ public with sharing class SOQL {
 	 */
 	public static Set<Id> getCaseIdsByAccount(Id accountId) {
 		// Create a set to hold the Case Ids
-
+		Set<Id> caseIds = new Set<Id>();
 		// Query the Cases
+		List<Case> cases = [
+			SELECT Id
+			FROM Case
+			WHERE AccountId = :accountId
+		];
 		// Loop through each Case and add the Id to the set
-		//for () {
-		//
-		//}
+		for (Case casesToLoop: cases) {
+			caseIds.add(casesToLoop.Id);//
+		}
 
-		return null; // Replace null with the variable you used to store the result
+		return caseIds; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -257,9 +289,16 @@ public with sharing class SOQL {
 		Map<Id, String> accountIdsToNames = new Map<Id, String>();
 
 		// Query the Accounts
+		List<Account> acctList = [
+			SELECT Id, Name
+			FROM Account
+			WHERE BillingCountry != :country
+		];
 		// Loop through each Account and add the Id and Name to the map
-
-		return null; // Replace null with the variable you used to store the result
+		for (Account acctsToLoop : acctList) {
+			accountIdsToNames.put(acctsToLoop.Id, acctsToLoop.Name);
+		}
+		return accountIdsToNames; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -270,7 +309,13 @@ public with sharing class SOQL {
 	 * @return The Account Name of the Contact.
 	 */
 	public static String getAccountNameForContact(String contactId) {
-		return null; // Replace null with the variable you used to store the result
+		Contact conToQuery = [
+			SELECT Account.Name
+			FROM Contact
+			WHERE Id = :contactId
+		];
+
+		return (conToQuery.Account != null) ? conToQuery.Account.Name : 'No Account Found'; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -281,7 +326,12 @@ public with sharing class SOQL {
 	 * @return An Account record with related Opportunities.
 	 */
 	public static Account getAccountAndOpportunitiesFromAccountId(Id accountId) {
-		return null; // Replace null with the variable you used to store the result
+		Account singleAcct = [
+			SELECT Id, Name, (SELECT Id, Name, StageName FROM Opportunities)
+			FROM Account
+			WHERE Id = :accountId
+		];
+		return singleAcct; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -293,11 +343,24 @@ public with sharing class SOQL {
 	 */
 	public static List<Contact> getAccountsWithContactsByState(Id accountId) {
 		// Query the Account
-
+		Account acctStates = [
+			SELECT BillingState
+			FROM Account
+			WHERE Id = :accountId
+		];
 		// Store the Account's BillingState
+		String billingState = acctStates.BillingState;
 
+		if (billingState == null) {
+			return new List<Contact>();
+		}
 		// Query the Contacts
-		return null; // Replace null with the variable you used to store the result
+		List<Contact> matchingContacts = [
+			SELECT Id, Name, MailingState
+			FROM Contact
+			WHERE MailingState = :billingState
+		];
+		return matchingContacts; // Replace null with the variable you used to store the result
 	}
 
 	/**
