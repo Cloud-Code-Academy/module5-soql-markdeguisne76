@@ -372,21 +372,54 @@ public with sharing class SOQL {
 	 * @return A list of Accounts with matching email domains.
 	 */
 	public static List<Account> findAccountsByLeadEmailDomains(Set<Id> leadIds) {
-		// Query the Leads
+    List<Lead> leadsToCheck = [
+        SELECT Id, Email
+        FROM Lead
+        WHERE Id IN :leadIds
+    ];
+    
+    Set<String> emailDomains = new Set<String>();
+    
+    for (Lead lead : leadsToCheck) {
+        if (lead.Email != null) {
+            String[] emailParts = lead.Email.split('@');
+            if (emailParts.size() == 2) { 
+                emailDomains.add(emailParts[1]); // Add only the domain part
+            }
+        }
+    }
+    
+    List<Account> matchingAccounts = new List<Account>();
+    if (!emailDomains.isEmpty()) {
+        matchingAccounts = [
+            SELECT Id, Name, Website
+            FROM Account
+            WHERE Website != null
+        ];
+        
+        // Step 5: Filter Accounts where the website domain matches an email domain
+        List<Account> filteredAccounts = new List<Account>();
+        for (Account acc : matchingAccounts) {
+            String domain = extractDomainFromWebsite(acc.Website);
+            if (emailDomains.contains(domain)) {
+                filteredAccounts.add(acc);
+            }
+        }
+        
+        return filteredAccounts; 
+    }
+    
+    return new List<Account>(); 
+}
 
-		// Create a set of email domains from the Leads
-
-		// Loop through each Lead
-
-		// Get the email from the Lead
-
-		// Check if the email is not null
-
-		// Add the email domain to the set
-
-		// Query the Accounts
-		return null; // Replace null with the variable you used to store the result
-	}
+public static String extractDomainFromWebsite(String website) {
+    if (website == null) return null;
+    
+    String cleanWebsite = website.replace('https://', '').replace('http://', '').replace('www.', '');
+    
+    String[] websiteParts = cleanWebsite.split('/');
+    return websiteParts[0]; 
+}
 
 	/**
 	 * Question 23
