@@ -397,7 +397,6 @@ public with sharing class SOQL {
             WHERE Website != null
         ];
         
-        // Step 5: Filter Accounts where the website domain matches an email domain
         List<Account> filteredAccounts = new List<Account>();
         for (Account acc : matchingAccounts) {
             String domain = extractDomainFromWebsite(acc.Website);
@@ -418,7 +417,7 @@ public static String extractDomainFromWebsite(String website) {
     String cleanWebsite = website.replace('https://', '').replace('http://', '').replace('www.', '');
     
     String[] websiteParts = cleanWebsite.split('/');
-    return websiteParts[0]; 
+    return websiteParts[0]; // I used ChatGPT to help on this one... I feel like the solution is too complex for the problem statement-MD
 }
 
 	/**
@@ -431,18 +430,32 @@ public static String extractDomainFromWebsite(String website) {
 	 */
 	public static void cloneLineItems(Id origOppId, List<Id> cloneOppIds) {
 		// Query the original Opportunity Line Items
-
+		List<OpportunityLineItem> origLineItems = [
+			SELECT Id, Quantity, UnitPrice, PricebookEntryId
+			FROM OpportunityLineItem
+			WHERE OpportunityId = :origOppId
+		];
 		// Create a list to hold the new line items
-
+		List<OpportunityLineItem> newOLIList = new List<OpportunityLineItem>();
 		// Generate a random number between 1 and 3
-
 		// Loop through each cloned Opportunity Id
-
 		// Loop through each original line item
-
 		// Clone the original line item and add the random number to the quantity
-
+		for (Id clonedOppId : cloneOppIds) {
+			for (OpportunityLineItem oli : origLineItems) {
+				OpportunityLineItem newOLI = new OpportunityLineItem();
+				newOLI.OpportunityId = clonedOppId;
+				newOLI.Quantity = oli.Quantity + (Integer.valueOf(Math.floor(Math.random() * 3) + 1));
+				newOLI.PricebookEntryId = oli.PricebookEntryId;
+				newOLI.UnitPrice = oli.UnitPrice;
+				// Add to list
+				newOLIList.add(newOLI);
+			}
+		}
 		// Insert the new line items
+		if (!newOLIList.isEmpty()) {
+			Database.insert(newOLIList);
+		}
 	}
 
 	/**
@@ -451,7 +464,11 @@ public static String extractDomainFromWebsite(String website) {
 	 * @return A list of filtered Opportunity
 	 */
 	public static List<Opportunity> getOpportunityDetailsForClosedWon() {
-		return null; // Replace null with the variable you used to store the result
+		return [
+			SELECT Id, AccountId, Name, OwnerId
+			FROM Opportunity
+			WHERE StageName = 'Closed Won'
+		]; // Replace null with the variable you used to store the result
 	}
 
 	/**
@@ -461,17 +478,44 @@ public static String extractDomainFromWebsite(String website) {
 	 */
 	public static void setPrimaryContact() {
 		//Use the getOpportunityDetailsForClosedWon() method to get the Opportunities
-
+		List<Opportunity> closedWonOpps = getOpportunityDetailsForClosedWon();
+		if (closedWonOpps.isEmpty()) {
+			return;
+		}
 		// Create a set of Account Ids from the Opportunities
-
+		Set<Id> accountIds = new Set<Id>();
+		for (Opportunity opp : closedWonOpps) {
+			if (opp.AccountId != null) {
+				accountIds.add(opp.AccountId);
+			}
+		}
 		// Query the Contacts
-
 		// Loop through each Contact and add the Account Id and Contact to the map
+		Map<Id, Contact> accountToPrimaryContact = new Map<Id, Contact>();
+		List<Contact> contactList = [
+			SELECT Id, FirstName, AccountId
+			FROM Contact
+			WHERE AccountId IN :accountIds
+			ORDER BY FirstName ASC // Ensure we get the first one alphabetically
+		];
 
+		for (Contact conFirst : contactList) {
+			if (!accountToPrimaryContact.containsKey(conFirst.AccountId)) {
+				accountToPrimaryContact.put(conFirst.AccountId, conFirst);
+			}
+		}
 		// Loop through each Opportunity
-
 		// Update the Opportunity primary contact from accountToContactMap
-
+		List<Opportunity> oppsToUpdate = new List<Opportunity>();
+		for (Opportunity opp : closedWonOpps) {
+			if (accountToPrimaryContact.containsKey(opp.AccountId)) {
+				opp.Primary_Contact__c = accountToPrimaryContact.get(opp.AccountId).Id;
+				oppsToUpdate.add(opp);
+			}
+		}
 		// Update the Opportunities
+		if (!oppsToUpdate.isEmpty()) {
+			Database.update(oppsToUpdate);
+		}
 	}
 }
